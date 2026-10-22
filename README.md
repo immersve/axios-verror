@@ -124,6 +124,19 @@ like:
 `[${status}] ${method} ${url} (${message})`
 ```
 
+The default formatter is available as `AxiosVError.formatSummary(ctx)` and
+the URL formatter as `AxiosVError.formatUrl(config)`. For example, to show a
+URL template instead of a URL containing path parameters:
+
+```javascript
+const axiosVError = AxiosVError.configure({
+  formatSummary: ctx => AxiosVError.formatSummary({
+    ...ctx,
+    url: AxiosVError.formatUrl({ ...ctx.config, url: ctx.config.urlTemplate }),
+  }),
+});
+```
+
 ### Error Context
 
 `formatSummary()` receives an object with the following properties:

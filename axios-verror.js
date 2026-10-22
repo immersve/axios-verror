@@ -102,6 +102,8 @@ function configure(opts = {}) {
 const AxiosVError = {
   configure,
   enhance: configure().enhance,
+  formatSummary: formatSummaryDefault,
+  formatUrl,
 };
 
 module.exports = AxiosVError;
