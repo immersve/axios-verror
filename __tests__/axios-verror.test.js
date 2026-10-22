@@ -221,4 +221,96 @@ describe('configure', () => {
     expect(VError.info(caught).axios.url).toEqual('http://nock/users/42');
   });
 
+  test('extractInfo adds fields from request config and response', async () => {
+    nock('http://nock')
+      .get('/')
+      .reply(400, { message: 'invalid request', responseCode: 'E42' });
+    const axiosVError = AxiosVError.configure({
+      extractInfo: (ctx) => ({
+        axios: {
+          requestId: ctx.config.headers['X-Request-ID'],
+          responseCode: ctx.res.data.responseCode,
+        },
+      }),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/',
+      method: 'GET',
+      headers: { 'X-Request-ID': 'req-1' },
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(VError.info(caught).axios).toMatchObject({
+      requestId: 'req-1',
+      responseCode: 'E42',
+      message: 'invalid request',
+      status: 400,
+    });
+  });
+
+  test('extractInfo adds top-level info for errors without a response', async () => {
+    nock('http://nock')
+      .get('/')
+      .replyWithError(Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }));
+    const axiosVError = AxiosVError.configure({
+      extractInfo: (ctx) => ({
+        retryable: ctx.status === undefined && ctx.code === 'ECONNRESET',
+      }),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(VError.info(caught)).toMatchObject({
+      retryable: true,
+      axios: {
+        code: 'ECONNRESET',
+        method: 'GET',
+        url: 'http://nock/',
+      },
+    });
+  });
+
+  test('built-in axios fields take precedence over extractInfo fields', async () => {
+    nock('http://nock')
+      .get('/')
+      .reply(400, { message: 'invalid request' });
+    const axiosVError = AxiosVError.configure({
+      extractInfo: () => ({
+        axios: { status: 200, url: 'http://elsewhere/' },
+      }),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(VError.info(caught).axios).toMatchObject({
+      status: 400,
+      url: 'http://nock/',
+    });
+  });
+
+  test('serialize verror with extractInfo fields', async () => {
+    nock('http://nock')
+      .get('/')
+      .reply(400, { message: 'invalid request' });
+    const axiosVError = AxiosVError.configure({
+      extractInfo: () => ({
+        axios: { requestId: 'req-1' },
+      }),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(JSON.parse(JSON.stringify(VError.info(caught)))).toEqual({
+      axios: {
+        requestId: 'req-1',
+        method: 'GET',
+        url: 'http://nock/',
+        status: 400,
+        message: 'invalid request',
+        code: 'ERR_BAD_REQUEST',
+      }
+    });
+  });
+
 });
