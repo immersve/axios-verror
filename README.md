@@ -71,6 +71,8 @@ properties require a response. Whether a response is available depends on
 the underlying error. For example, if there is a network connectivity issue
 then there will not be an HTTP response available.
 
+Additional properties can be added with the `extractInfo()` option.
+
 
 ## Error Messages
 
@@ -137,9 +139,27 @@ const axiosVError = AxiosVError.configure({
 });
 ```
 
+#### extractInfo(ctx)
+
+A function which returns additional properties for `VError.info()` from the
+[error context](#error-context). Properties under `axios` are added to
+`VError.info(err).axios`, including its JSON serialization. Other properties
+are added to `VError.info(err)`. Built-in `axios` properties always take
+precedence. By default, no properties are added.
+
+```javascript
+const axiosVError = AxiosVError.configure({
+  extractInfo: ctx => ({
+    axios: { requestId: ctx.res?.data?.requestId },
+    retryable: ctx.status === undefined || ctx.status >= 500,
+  }),
+});
+```
+
 ### Error Context
 
-`formatSummary()` receives an object with the following properties:
+`formatSummary()` and `extractInfo()` receive an object with the following
+properties:
 
 | Name    | Type                 | Description                                                         |
 | -       | -                    | -                                                                   |
