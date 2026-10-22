@@ -195,4 +195,30 @@ describe('configure', () => {
     );
   });
 
+  test('formatSummary can reuse default formatting with request config', async () => {
+    nock('http://nock')
+      .get('/users/42')
+      .reply(404, { message: 'not found' });
+    const client = axios.create({
+      baseURL: 'http://nock',
+    });
+    const axiosVError = AxiosVError.configure({
+      formatSummary: (ctx) => {
+        const templateConfig = Object.assign({}, ctx.config, { url: ctx.config.urlTemplate });
+        return AxiosVError.formatSummary(Object.assign({}, ctx, {
+          url: AxiosVError.formatUrl(templateConfig),
+        }));
+      },
+    });
+    const caught = await client.request({
+      url: 'users/42',
+      urlTemplate: 'users/{userId}',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(caught.message).toEqual(
+      '[404] GET http://nock/users/{userId} (not found): Request failed with status code 404'
+    );
+    expect(VError.info(caught).axios.url).toEqual('http://nock/users/42');
+  });
+
 });
