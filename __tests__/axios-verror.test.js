@@ -169,3 +169,30 @@ describe('enhance', () => {
   });
 
 });
+
+describe('configure', () => {
+
+  test('formatSummary receives the full error context', async () => {
+    nock('http://nock')
+      .get('/users/42')
+      .reply(404, { message: 'not found' });
+    const axiosVError = AxiosVError.configure({
+      formatSummary: (ctx) => [
+        ctx.err.name,
+        ctx.code,
+        ctx.res.status,
+        ctx.method,
+        ctx.config.urlTemplate,
+      ].join(' '),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/users/42',
+      urlTemplate: 'users/{userId}',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(caught.message).toEqual(
+      'AxiosError ERR_BAD_REQUEST 404 GET users/{userId}: Request failed with status code 404'
+    );
+  });
+
+});
