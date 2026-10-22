@@ -114,14 +114,30 @@ A function which extracts the error message from the axios response. By
 default, the message will be attempted to be taken from the parsed Axios
 response body as either `res.data.message` or `res.data.error.message`.
 
-#### formatSummary({ status, method, url, message })
+#### formatSummary(ctx)
 
-A function which generates the formatted error message. By
-default, the message will be formatted like:
+A function which generates the formatted error message from the
+[error context](#error-context). By default, the message will be formatted
+like:
 
 ```javascript
 `[${status}] ${method} ${url} (${message})`
 ```
+
+### Error Context
+
+`formatSummary()` receives an object with the following properties:
+
+| Name    | Type                 | Description                                                         |
+| -       | -                    | -                                                                   |
+| err     | Object               | Original Axios error.                                               |
+| config  | Object               | Axios request config, including any custom properties.              |
+| res     | Object *(Optional)* | Raw Axios response object.                                          |
+| method  | String               | HTTP request method (GET, POST etc).                                |
+| url     | String               | HTTP request URL, as in `VError.info(err).axios`.                   |
+| status  | Number *(Optional)* | HTTP response status code.                                          |
+| code    | String *(Optional)* | Error code from axios or underlying system (e.g., ECONNRESET).     |
+| message | String *(Optional)* | Message returned by `extractMessage()`.                             |
 
 
 ## History
