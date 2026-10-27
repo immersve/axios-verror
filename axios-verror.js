@@ -29,6 +29,10 @@ function extractMessageDefault(res) {
   return res?.data?.message || res?.data?.error?.message;
 }
 
+function extractInfoDefault() {
+  return {};
+}
+
 function trimTrailingSlash(s = '') {
   return s.replace(/\/$/, '');
 }
@@ -55,17 +59,23 @@ function enhanceError(err) {
   const status = res?.status;
   const code = err.code;
   const message = this.extractMessage(res);
-  const errorMessage = this.formatSummary({
+  const ctx = {
+    err,
+    config,
+    res,
     url,
     method,
     status,
+    code,
     message,
-  });
+  };
+  const errorMessage = this.formatSummary(ctx);
+  const extracted = this.extractInfo(ctx);
   throw new VError({
     name: 'HttpRequestFailed',
     cause: err,
-    info: {
-      axios: {
+    info: Object.assign({}, extracted, {
+      axios: Object.assign({}, extracted.axios, {
         res,
         method,
         url,
@@ -73,16 +83,16 @@ function enhanceError(err) {
         message,
         code,
         toJSON() {
-          return {
+          return Object.assign({}, extracted.axios, {
             method,
             url,
             status,
             message,
             code,
-          };
+          });
         }
-      },
-    },
+      }),
+    }),
   }, errorMessage);
 }
 
@@ -90,6 +100,7 @@ function configure(opts = {}) {
   const context = {
     extractMessage: opts.extractMessage || extractMessageDefault,
     formatSummary: opts.formatSummary || formatSummaryDefault,
+    extractInfo: opts.extractInfo || extractInfoDefault,
   };
   return { enhance: enhanceError.bind(context) };
 }
@@ -97,6 +108,8 @@ function configure(opts = {}) {
 const AxiosVError = {
   configure,
   enhance: configure().enhance,
+  formatSummary: formatSummaryDefault,
+  formatUrl,
 };
 
 module.exports = AxiosVError;

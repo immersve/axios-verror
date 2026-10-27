@@ -71,6 +71,8 @@ properties require a response. Whether a response is available depends on
 the underlying error. For example, if there is a network connectivity issue
 then there will not be an HTTP response available.
 
+Additional properties can be added with the `extractInfo()` option.
+
 
 ## Error Messages
 
@@ -114,14 +116,61 @@ A function which extracts the error message from the axios response. By
 default, the message will be attempted to be taken from the parsed Axios
 response body as either `res.data.message` or `res.data.error.message`.
 
-#### formatSummary({ status, method, url, message })
+#### formatSummary(ctx)
 
-A function which generates the formatted error message. By
-default, the message will be formatted like:
+A function which generates the formatted error message from the
+[error context](#error-context). By default, the message will be formatted
+like:
 
 ```javascript
 `[${status}] ${method} ${url} (${message})`
 ```
+
+The default formatter is available as `AxiosVError.formatSummary(ctx)` and
+the URL formatter as `AxiosVError.formatUrl(config)`. For example, to show a
+URL template instead of a URL containing path parameters:
+
+```javascript
+const axiosVError = AxiosVError.configure({
+  formatSummary: ctx => AxiosVError.formatSummary({
+    ...ctx,
+    url: AxiosVError.formatUrl({ ...ctx.config, url: ctx.config.urlTemplate }),
+  }),
+});
+```
+
+#### extractInfo(ctx)
+
+A function which returns additional properties for `VError.info()` from the
+[error context](#error-context). Properties under `axios` are added to
+`VError.info(err).axios`, including its JSON serialization. Other properties
+are added to `VError.info(err)`. Built-in `axios` properties always take
+precedence. By default, no properties are added.
+
+```javascript
+const axiosVError = AxiosVError.configure({
+  extractInfo: ctx => ({
+    axios: { requestId: ctx.res?.data?.requestId },
+    retryable: ctx.status === undefined || ctx.status >= 500,
+  }),
+});
+```
+
+### Error Context
+
+`formatSummary()` and `extractInfo()` receive an object with the following
+properties:
+
+| Name    | Type                 | Description                                                         |
+| -       | -                    | -                                                                   |
+| err     | Object               | Original Axios error.                                               |
+| config  | Object               | Axios request config, including any custom properties.              |
+| res     | Object *(Optional)* | Raw Axios response object.                                          |
+| method  | String               | HTTP request method (GET, POST etc).                                |
+| url     | String               | HTTP request URL, as in `VError.info(err).axios`.                   |
+| status  | Number *(Optional)* | HTTP response status code.                                          |
+| code    | String *(Optional)* | Error code from axios or underlying system (e.g., ECONNRESET).     |
+| message | String *(Optional)* | Message returned by `extractMessage()`.                             |
 
 
 ## History

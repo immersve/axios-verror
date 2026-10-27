@@ -169,3 +169,148 @@ describe('enhance', () => {
   });
 
 });
+
+describe('configure', () => {
+
+  test('formatSummary receives the full error context', async () => {
+    nock('http://nock')
+      .get('/users/42')
+      .reply(404, { message: 'not found' });
+    const axiosVError = AxiosVError.configure({
+      formatSummary: (ctx) => [
+        ctx.err.name,
+        ctx.code,
+        ctx.res.status,
+        ctx.method,
+        ctx.config.urlTemplate,
+      ].join(' '),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/users/42',
+      urlTemplate: 'users/{userId}',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(caught.message).toEqual(
+      'AxiosError ERR_BAD_REQUEST 404 GET users/{userId}: Request failed with status code 404'
+    );
+  });
+
+  test('formatSummary can reuse default formatting with request config', async () => {
+    nock('http://nock')
+      .get('/users/42')
+      .reply(404, { message: 'not found' });
+    const client = axios.create({
+      baseURL: 'http://nock',
+    });
+    const axiosVError = AxiosVError.configure({
+      formatSummary: (ctx) => {
+        const templateConfig = Object.assign({}, ctx.config, { url: ctx.config.urlTemplate });
+        return AxiosVError.formatSummary(Object.assign({}, ctx, {
+          url: AxiosVError.formatUrl(templateConfig),
+        }));
+      },
+    });
+    const caught = await client.request({
+      url: 'users/42',
+      urlTemplate: 'users/{userId}',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(caught.message).toEqual(
+      '[404] GET http://nock/users/{userId} (not found): Request failed with status code 404'
+    );
+    expect(VError.info(caught).axios.url).toEqual('http://nock/users/42');
+  });
+
+  test('extractInfo adds fields from request config and response', async () => {
+    nock('http://nock')
+      .get('/')
+      .reply(400, { message: 'invalid request', responseCode: 'E42' });
+    const axiosVError = AxiosVError.configure({
+      extractInfo: (ctx) => ({
+        axios: {
+          requestId: ctx.config.headers['X-Request-ID'],
+          responseCode: ctx.res.data.responseCode,
+        },
+      }),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/',
+      method: 'GET',
+      headers: { 'X-Request-ID': 'req-1' },
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(VError.info(caught).axios).toMatchObject({
+      requestId: 'req-1',
+      responseCode: 'E42',
+      message: 'invalid request',
+      status: 400,
+    });
+  });
+
+  test('extractInfo adds top-level info for errors without a response', async () => {
+    nock('http://nock')
+      .get('/')
+      .replyWithError(Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }));
+    const axiosVError = AxiosVError.configure({
+      extractInfo: (ctx) => ({
+        retryable: ctx.status === undefined && ctx.code === 'ECONNRESET',
+      }),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(VError.info(caught)).toMatchObject({
+      retryable: true,
+      axios: {
+        code: 'ECONNRESET',
+        method: 'GET',
+        url: 'http://nock/',
+      },
+    });
+  });
+
+  test('built-in axios fields take precedence over extractInfo fields', async () => {
+    nock('http://nock')
+      .get('/')
+      .reply(400, { message: 'invalid request' });
+    const axiosVError = AxiosVError.configure({
+      extractInfo: () => ({
+        axios: { status: 200, url: 'http://elsewhere/' },
+      }),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(VError.info(caught).axios).toMatchObject({
+      status: 400,
+      url: 'http://nock/',
+    });
+  });
+
+  test('serialize verror with extractInfo fields', async () => {
+    nock('http://nock')
+      .get('/')
+      .reply(400, { message: 'invalid request' });
+    const axiosVError = AxiosVError.configure({
+      extractInfo: () => ({
+        axios: { requestId: 'req-1' },
+      }),
+    });
+    const caught = await axios.request({
+      url: 'http://nock/',
+      method: 'GET',
+    }).catch(axiosVError.enhance).catch(e => e);
+    expect(JSON.parse(JSON.stringify(VError.info(caught)))).toEqual({
+      axios: {
+        requestId: 'req-1',
+        method: 'GET',
+        url: 'http://nock/',
+        status: 400,
+        message: 'invalid request',
+        code: 'ERR_BAD_REQUEST',
+      }
+    });
+  });
+
+});
