@@ -15,6 +15,6 @@ jobs:
           node-version-file: .nvmrc
           registry-url: 'https://registry.npmjs.org'
       - run: npm install -g npm@^11.5.1
-      - run: yarn install --frozen-lockfile
+      - run: yarn install --immutable
       - run: scripts/version-tag-validate.js ${{ github.ref }}
       - run: npm publish --access public
