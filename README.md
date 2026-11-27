@@ -5,9 +5,16 @@ Enhance [Axios] request errors using [VError].
 
 ## Installation
 
+This is Immersve's fork of [centrapay/axios-verror]. The
+`@centrapay/axios-verror` package on npm is published from upstream, so
+install the fork from a GitHub archive pinned to a commit:
+
 ```bash
-npm install @centrapay/axios-verror
+yarn add @centrapay/axios-verror@https://github.com/immersve/axios-verror/archive/<commit>.tar.gz
 ```
+
+The package keeps its `@centrapay/axios-verror` name, so `require` calls are
+the same as for the upstream package.
 
 
 ## Usage
@@ -185,6 +192,7 @@ This software is licensed under Apache-2.0 License. Please see [LICENSE](/LICENS
 
 
 [Centrapay]: https://centrapay.com/
+[centrapay/axios-verror]: https://github.com/centrapay/axios-verror
 [Axios]: https://axios-http.com/
 [VError]: https://github.com/joyent/node-verror
 [Axios Response Schema]: https://axios-http.com/docs/res_schema
