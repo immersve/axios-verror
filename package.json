@@ -3,9 +3,6 @@
   "version": "1.4.3",
   "description": "Enhance Axios request errors using VError",
   "main": "axios-verror.js",
-  "files": [
-    "axios-verror.js"
-  ],
   "scripts": {
     "test": "jest",
     "lint": "eslint ."
